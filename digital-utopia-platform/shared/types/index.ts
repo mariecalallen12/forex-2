@@ -1066,5 +1066,10 @@ export interface ChartDataset {
   tension?: number;
 }
 
+// ===== PHASE 5: RISK MANAGEMENT & COMPLIANCE TYPES =====
+
+// Import and re-export Phase 5 types
+export * from './risk-compliance';
+
 // ===== EXPORTS =====
 export default {};
