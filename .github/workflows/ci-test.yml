@@ -74,7 +74,7 @@ jobs:
           CI: true
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-build
           path: digital-utopia-platform/${{ matrix.app }}/.next
@@ -216,7 +216,7 @@ jobs:
           cat deployment-report.txt
 
       - name: Upload deployment report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deployment-report
           path: deployment-report.txt
