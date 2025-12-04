@@ -719,18 +719,98 @@ export const formatAccountNumber = (accountNumber: string, mask: boolean = true)
 };
 
 // ===== CRYPTO UTILITIES =====
-export const hashPassword = async (password: string): Promise<string> => {
-  if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+/**
+ * Hash password using bcrypt (server-side only)
+ * For client-side, password should be sent over HTTPS to server for hashing
+ * 
+ * Note: This is a simplified implementation for server environments.
+ * In production, use bcryptjs library or similar.
+ * 
+ * @param password - Plain text password
+ * @param saltRounds - Number of salt rounds (default: 10)
+ * @returns Hashed password
+ */
+export const hashPassword = async (
+  password: string, 
+  saltRounds: number = 10
+): Promise<string> => {
+  // Check if we're in a Node.js environment
+  if (typeof window === 'undefined') {
+    try {
+      // Dynamic import of crypto module for Node.js
+      const crypto = await import('crypto');
+      
+      // Generate salt
+      const salt = crypto.randomBytes(16).toString('hex');
+      
+      // Hash password with salt using PBKDF2
+      return new Promise((resolve, reject) => {
+        crypto.pbkdf2(
+          password,
+          salt,
+          100000, // iterations
+          64, // key length
+          'sha512', // digest
+          (err, derivedKey) => {
+            if (err) reject(err);
+            // Store salt with hash: salt:hash
+            resolve(salt + ':' + derivedKey.toString('hex'));
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Password hashing error:', error);
+      throw new Error('Failed to hash password');
+    }
   }
   
-  // Fallback for server-side or unsupported environments
-  // In a real implementation, use bcrypt or similar
-  return password; // This is a placeholder - implement proper hashing
+  // Browser environment - should not hash on client side
+  // Return password as-is and let server handle hashing
+  console.warn('⚠️ Password hashing should be done server-side. Sending to server...');
+  return password;
+};
+
+/**
+ * Verify password against hash (server-side only)
+ * 
+ * @param password - Plain text password to verify
+ * @param hash - Stored hash with salt (format: salt:hash)
+ * @returns True if password matches
+ */
+export const verifyPassword = async (
+  password: string,
+  hash: string
+): Promise<boolean> => {
+  if (typeof window === 'undefined') {
+    try {
+      const crypto = await import('crypto');
+      
+      // Extract salt and hash
+      const [salt, originalHash] = hash.split(':');
+      
+      // Hash the input password with the same salt
+      return new Promise((resolve, reject) => {
+        crypto.pbkdf2(
+          password,
+          salt,
+          100000,
+          64,
+          'sha512',
+          (err, derivedKey) => {
+            if (err) reject(err);
+            resolve(derivedKey.toString('hex') === originalHash);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
+    }
+  }
+  
+  // Browser environment
+  throw new Error('Password verification must be done server-side');
 };
 
 export const generateSalt = (): string => {
@@ -967,6 +1047,7 @@ export default {
   
   // Crypto
   hashPassword,
+  verifyPassword,
   generateSalt,
   encryptData,
   decryptData,
